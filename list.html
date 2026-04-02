@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>文章列表</title>
+    <style>
+        body { padding: 20px; }
+        .item {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        button {
+            padding: 6px 12px;
+            margin-right: 8px;
+            cursor: pointer;
+        }
+        .comment {
+            margin-top: 10px;
+            padding: 6px;
+            background: #fff;
+            border-left: 3px solid #0066cc;
+        }
+    </style>
+</head>
+<body>
+    <h2>文章列表</h2>
+    <button onclick="location.href='add.html'">发布新文章</button>
+    <div id="list"></div>
+
+    <script>
+        // 加载文章
+        async function loadList() {
+            try {
+                let res = await fetch("http://localhost:8080/article/list");
+                let data = await res.json();
+                let list = document.getElementById("list");
+                list.innerHTML = "";
+
+                data.data.forEach(article => {
+                    list.innerHTML += `
+                    <div class="item">
+                        <h3>${article.title}</h3>
+                        <p>${article.content}</p>
+                        <button onclick="del(${article.id})">删除文章</button>
+
+                        <div style="margin-top:12px;">
+                            <h4>评论</h4>
+                            <div id="comments-${article.id}">
+                                暂无评论
+                            </div>
+                            <input type="text" id="input-${article.id}" placeholder="写评论">
+                            <button onclick="submitComment(${article.id})">提交评论</button>
+                        </div>
+                    </div>
+                    `;
+                    loadComments(article.id);
+                });
+            } catch (e) {
+                console.log("加载失败", e);
+            }
+        }
+
+        // 加载评论
+        async function loadComments(articleId) {
+            try {
+                let res = await fetch("http://localhost:8080/comment/list?articleId=" + articleId);
+                let data = await res.json();
+                let box = document.getElementById("comments-" + articleId);
+                box.innerHTML = "";
+                data.data.forEach(c => {
+                    box.innerHTML += `<div class="comment">${c.content}</div>`;
+                });
+            } catch (e) {
+                console.log("评论加载失败");
+            }
+        }
+
+        // ✅ 修复：提交评论（完全匹配后端）
+        async function submitComment(articleId) {
+            let input = document.getElementById("input-" + articleId);
+            let content = input.value.trim();
+            if (!content) return;
+
+            let res = await fetch("http://localhost:8080/comment/add", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    articleId: articleId,
+                    content: content
+                })
+            });
+
+            let result = await res.json();
+            console.log("提交结果：", result);
+
+            input.value = "";
+            loadComments(articleId);
+        }
+
+        // 删除文章
+        async function del(id) {
+            await fetch(`http://localhost:8080/article/delete/${id}`, { method: "DELETE" });
+            loadList();
+        }
+
+        loadList();
+    </script>
+</body>
+</html>
